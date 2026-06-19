@@ -1,128 +1,167 @@
 # Docker Hardened Images
 
-¡Hola developer 👋🏻! En este repo encontrarás una serie de demos que demuestran por qué debes usar Docker Hardened Images a partir de ahora.
+¡Hola developer 👋🏻! En este repo encontrarás una web estática que muestra las ventajas de usar [Docker Hardened Images](https://docs.docker.com/dhi/how-to/use/). La propia app sirve como ejemplo: la misma web se puede servir con una imagen regular o con una imagen hardened para que compruebes las diferencias.
 
-## Ejemplo con Nginx
-
-Para que lo puedas ver de forma sencilla y con un ejemplo que es muy común vamos a usar una versión de la imagen de nginx. Vamos a descargarla de la misma forma que lo hemos hecho siempre. Esto es:
+## Requisitos previos
 
 ```shell
-docker pull nginx:1-alpine3.21
+docker login dhi.io
 ```
 
-Si echamos un vistazo a la misma:
+## La app
+
+Una web estática en `app/` que documenta las ventajas de las DHI. La misma web, dos formas de servirla:
+
+| Archivo | Imagen base | Puerto | Tamaño | Seguridad |
+|---------|-------------|--------|--------|-----------|
+| `Dockerfile.regular` | `nginx:1-alpine3.22` | 80 | ~23.1 MB | 84 vulnerabilidades (3C 28H 44M 9L) |
+| `Dockerfile.hardened` | `dhi.io/nginx:1-alpine3.22` | 8080 | ~4.8 MB | 1 vulnerabilidad (1M) |
+
+---
+
+## Demo 1: Construir y comparar
+
+### Imagen regular
 
 ```shell
-docker images nginx
+docker build -f Dockerfile.regular -t web-regular .
+docker run --name web-regular -p 8080:80 -d web-regular
 ```
 
-Te vas a dar cuenta que la misma ocupa 22.7MB, por lo que es una imagen relativamente pequeña por lo que de primeras todo bien.
+Abre http://localhost:8080 — la web funciona.
 
-Vamos a ejecutar un contenedor con la misma de la forma habitual:
+### Imagen hardened
 
 ```shell
-docker run --name regular-nginx -p 8080:80 -d nginx:1-alpine3.21
+docker build -f Dockerfile.hardened -t web-hardened .
+docker run --name web-hardened -p 8081:8080 -d web-hardened
 ```
 
-Ahora vamos a intentar conectarnos al shell de este contenedor:
+Abre http://localhost:8081 — la misma web, servida de forma segura.
+
+### Comparar tamaño
 
 ```shell
-docker exec -it regular-nginx sh
-``` 
-y verás que puedes acceder sin problema.
-
-Y ya por último vamos a ver qué nos dice `docker scout`de esta imagen:
-
-```shell
-docker scout quickview nginx:1-alpine3.21
+docker images | grep web-
 ```
 
-y como puedes ver este es el resultado:
+Verás la diferencia de tamaño: la imagen hardened es un **79% más pequeña** (4.8 MB vs 23.1 MB) y tiene un **81% menos de paquetes** (16 vs 86).
+
+### Comparar vulnerabilidades con Docker Scout
+
+```shell
+docker scout quickview web-regular
+docker scout quickview web-hardened
+```
 
 ![docker-scout-regular-nginx](./images/docker%20scout%20regular-nginx.png)
 
-### Resultados de `docker scout`
+---
 
-El `quickview` de Docker Scout para `nginx:1-alpine3.21` muestra las siguientes vulnerabilidades heredadas de la imagen base `oisupport/staging-arm64v8:606cf5cdc423682187a014d1d4e9c992d0655d58171c788b4ef54b299c233d07`:
+## Demo 2: Shell y package manager
 
-- 2 vulnerabilidades **críticas**
-- 9 vulnerabilidades de severidad **alta**
-- 14 vulnerabilidades de severidad **media**
-- 5 vulnerabilidades de severidad **baja**
-
-> ℹ️ Estos números provienen del SBOM generado por Docker Scout para la imagen objetivo y son el punto de partida para endurecerla.
-
-Con todo esto ahora vamos a ver cómo se comporta la versión hardened de esta imagen.
-
-## Ejemplo con Nginx Hardened
-
-Si queremos recuperar la versión hardened de esta imagen lo único que debemos hacer es poner por delante de la misma `dhi.io/`, por lo que el comando para descargarla sería el siguiente:
+### En la imagen regular: acceso total
 
 ```shell
-docker pull dhi.io/nginx:1-alpine3.21
+docker exec -it web-regular sh
 ```
 
-Esto es así porque `dhi.io` es el repositorio público de Docker Hardened Images.
-
-Si volvemos a echar un vistazo al listado de imagenes descargadas
+Dentro del contenedor:
 
 ```shell
-docker images
+whoami          # root
+apk add curl   # funciona
+curl localhost  # funciona
+exit
 ```
 
-Comprobarás que la imagen `dhi.io/nginx:1-alpine3.21` ocupa 4.61MB, lo que supone una reducción de tamaño del 79.7% respecto a la imagen original. Esto es importante porque cuanto más pequeña sea la imagen, menos superficie de ataque tendrá.
+Un atacante que comprometa este contenedor puede instalar herramientas, escanear la red y escalar privilegios.
 
-Ahora vamos a ejecutar un contenedor con esta imagen hardened:
+### En la imagen hardened: acceso restringido
 
 ```shell
-docker run --name hardened-nginx -p 8081:80 -d dhi.io/nginx:1-alpine3.21 
+docker exec -it web-hardened sh
 ```
 
-Si intentamos exponer directamente el puerto 80 veremos que no funciona. En este caso, esta imagen tiene como puerto por defecto el 8080.
+> ℹ️ En nginx la shell está disponible porque el entrypoint de nginx usa scripts shell para configuración dinámica (envsubst). Sin embargo, el package manager **no existe**:
 
 ```shell
-docker rm -f hardened-nginx
-docker run --name hardened-nginx -p 8081:8080 -d dhi.io/nginx:1-alpine3.21 
+whoami          # nginx (non-root)
+apk add curl   # sh: apk: not found
 ```
 
-Esto es así porque [una de las medidas de seguridad](https://docs.docker.com/dhi/how-to/use/#considerations-when-adopting-dhis) que implementan las Docker Hardened Images es no usar puertos privilegiados (por debajo del 1024).
+Un atacante que comprometa este contenedor no puede instalar nada, no es root y tiene capacidades muy limitadas.
 
-"Applications running as non-root users can't bind to ports below 1024 in older versions of Docker or in some Kubernetes configurations. Use ports above 1024 for compatibility."
+### Contraste con Python: sin shell por completo
 
-Ahora vamos a intentar conectarnos al shell de este contenedor:
+Para imágenes que no necesitan shell en su entrypoint (Python, Node, Go), la versión hardened lo elimina completamente:
 
 ```shell
-docker exec -it hardened-nginx sh
+# La imagen regular tiene shell
+docker run --rm -it python:3.13-alpine sh
+# funciona
+
+# La imagen hardened NO tiene shell
+docker run --rm -it dhi.io/python:3.13-alpine3.22 sh
+# exec: "sh": executable file not found in $PATH
 ```
 
-Y ahora intentamos instalar el mismo paquete:
+**Regla general:** las DHI incluyen el mínimo necesario para que la aplicación funcione. Nginx necesita shell → lo mantiene. Python runtime no necesita shell → lo elimina.
+
+---
+
+## Demo 3: Non-root por defecto
 
 ```shell
-apk add vim
+# Regular: root
+docker exec web-regular id
+# uid=0(root) gid=0(root)
+
+# Hardened: non-root
+docker exec web-hardened id
+# uid=65532(nginx) gid=65532(nginx)
 ```
 
-En este caso no funciona porque el gestor de paquetes no está disponible en esta imagen hardened. Esto es así porque [otra de las medidas de seguridad](https://docs.docker.com/dhi/how-to/use/#considerations-when-adopting-dhis) que implementan las Docker Hardened Images es eliminar los gestores de paquetes para evitar que se instalen paquetes no autorizados.
+Por eso la imagen hardened usa el puerto 8080 y no el 80: los usuarios non-root no pueden hacer bind a puertos privilegiados (< 1024).
 
-# Por defecto en estas imágenes no se ejecutan como root
+---
 
-A diferencia de las imágenes tradicionales, las Docker Hardened Images no se ejecutan como root por defecto. Esto es una medida de seguridad importante porque limita el alcance de un posible ataque. Por lo que si dentro de esta misma imagen ejecutamos el comando `id` veremos que el usuario no es root:
+## Demo 4: Attestations con ORAS
+
+Las DHI incluyen attestations firmadas. Puedes verificarlas:
 
 ```shell
-whoami
+brew install oras  # si no lo tienes
+oras login dhi.io
+oras discover dhi.io/nginx:1-alpine3.22 --platform linux/amd64
 ```
 
-Verás que en este caso el usuario es `nginx` y no `root`.
+Verás:
+- **SBOM** — qué contiene la imagen
+- **Provenance** — cómo se construyó
+- **Vulnerability report** — análisis de seguridad
+- **Changelog** — cambios respecto a la versión anterior
 
-# Multistage build
+---
 
-Para generar estas imagenes siempre se usa la técnica de multistage build para asegurarse de que solo los artefactos necesarios se incluyen en la imagen final. Esto ayuda a reducir el tamaño de la imagen y a minimizar la superficie de ataque.
-
-# TLS certificates
-
-DHIs include standard TLS certificates. You do not need to manually install CA certs. Esto significa que las aplicaciones dentro del contenedor pueden establecer conexiones seguras sin necesidad de configuraciones adicionales.
-
-Para comprobarlo podemos ejecutar el siguiente comando dentro del contenedor:
+## Limpieza
 
 ```shell
-wget https://www.google.com
+docker rm -f web-regular web-hardened
+docker rmi web-regular web-hardened
 ```
+
+---
+
+## Resumen de diferencias
+
+| Característica | `Dockerfile.regular` | `Dockerfile.hardened` |
+|---|---|---|
+| Tamaño | 23.1 MB | 4.8 MB |
+| Paquetes | 86 | 16 |
+| Vulnerabilidades | 84 (3C 28H 44M 9L) | 1 (1M) |
+| Usuario | root (uid=0) | nginx (uid=65532) |
+| Puerto | 80 | 8080 |
+| Package manager | ✅ apk | ❌ |
+| Shell | ✅ sh | ✅ (excepción nginx) |
+| Attestations | ❌ | ✅ |

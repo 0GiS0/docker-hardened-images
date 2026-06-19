@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Hardened Images</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🛡️ Docker Hardened Images</h1>
+            <p class="subtitle">Imágenes de contenedor seguras por defecto</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <p>Esta web está servida con una <strong>Docker Hardened Image</strong>. Si estás viendo esto, ya estás usando una imagen más segura, más pequeña y con menos vulnerabilidades que la versión estándar.</p>
+        </section>
+
+        <section class="live-report">
+            <h2>🔍 Informe de seguridad en vivo</h2>
+            <p class="report-desc">Estas comprobaciones se ejecutan <strong>desde dentro del contenedor</strong> en cada arranque:</p>
+            <div id="status-loading" class="loading">Cargando comprobaciones...</div>
+            <div id="status-report" class="report hidden"></div>
+        </section>
+
+        <section class="comparison">
+            <h2>¿Qué cambia respecto a una imagen normal?</h2>
+            <div class="cards">
+                <div class="card regular">
+                    <h3>❌ Imagen regular</h3>
+                    <ul>
+                        <li>Shell disponible (<code>sh</code>, <code>bash</code>)</li>
+                        <li>Package manager activo (<code>apk</code>, <code>apt</code>)</li>
+                        <li>Se ejecuta como <code>root</code></li>
+                        <li>Puertos privilegiados (80, 443)</li>
+                        <li>~23.1 MB (nginx alpine)</li>
+                        <li>84 vulnerabilidades conocidas</li>
+                    </ul>
+                </div>
+                <div class="card hardened">
+                    <h3>✅ Imagen hardened</h3>
+                    <ul>
+                        <li>Sin package manager</li>
+                        <li>Se ejecuta como non-root</li>
+                        <li>Puertos no privilegiados (8080)</li>
+                        <li>~4.8 MB (79% menos)</li>
+                        <li>1 vulnerabilidad conocida</li>
+                        <li>Attestations firmadas (SBOM, provenance)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2>Ventajas clave</h2>
+
+            <div class="feature">
+                <h3>🔒 Superficie de ataque mínima</h3>
+                <p>Sin shell ni package manager en runtime, un atacante que comprometa el contenedor no puede descargar herramientas, escalar privilegios ni moverse lateralmente.</p>
+            </div>
+
+            <div class="feature">
+                <h3>👤 Non-root por defecto</h3>
+                <p>Las DHI se ejecutan con un usuario sin privilegios. Si un proceso es comprometido, su impacto está limitado a lo que ese usuario puede hacer.</p>
+            </div>
+
+            <div class="feature">
+                <h3>📦 Tamaño reducido</h3>
+                <p>Menos binarios y librerías significa menos código que puede tener vulnerabilidades. Una imagen de 4.6 MB tiene mucho menos que auditar que una de 22.7 MB.</p>
+            </div>
+
+            <div class="feature">
+                <h3>📋 Attestations y SBOM</h3>
+                <p>Cada imagen incluye metadatos firmados: qué contiene (SBOM), cómo se construyó (provenance), y qué vulnerabilidades tiene. Verificable con ORAS.</p>
+            </div>
+
+            <div class="feature">
+                <h3>🛡️ Socket Firewall (variantes -sfw-dev)</h3>
+                <p>Protección de supply chain durante la instalación de dependencias. Detecta y bloquea paquetes maliciosos antes de que lleguen a tu imagen.</p>
+            </div>
+
+            <div class="feature">
+                <h3>🏗️ Patrón multi-stage</h3>
+                <p>Usa <code>-dev</code> para compilar (con shell y herramientas) y la imagen runtime limpia para producción. Solo lo necesario llega al contenedor final.</p>
+            </div>
+        </section>
+
+        <section class="demo-info">
+            <h2>Pruébalo tú mismo</h2>
+            <div class="code-block">
+                <pre><code># Construir con imagen regular
+docker build -f Dockerfile.regular -t web-regular .
+docker run -p 8080:80 web-regular
+
+# Construir con imagen hardened
+docker build -f Dockerfile.hardened -t web-hardened .
+docker run -p 8081:8080 web-hardened
+
+# Comparar tamaño
+docker images | grep web-
+
+# Comparar vulnerabilidades
+docker scout quickview web-regular
+docker scout cves web-hardened --format sarif</code></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Servido con <strong>dhi.io/nginx</strong> — <a href="https://docs.docker.com/dhi/how-to/use/">Documentación oficial</a></p>
+        </div>
+    </footer>
+
+    <script>
+        async function loadStatus() {
+            const loading = document.getElementById('status-loading');
+            const report = document.getElementById('status-report');
+
+            try {
+                const res = await fetch('/status.json');
+                if (!res.ok) throw new Error('No status.json');
+                const data = await res.json();
+
+                const checks = [
+                    {
+                        label: 'Usuario',
+                        value: `${data.user.name} (uid=${data.user.uid})`,
+                        secure: !data.user.is_root,
+                        detail: data.user.is_root ? '⚠️ Ejecutando como root' : '✅ Non-root'
+                    },
+                    {
+                        label: 'Puerto de escucha',
+                        value: data.port.listening,
+                        secure: data.port.listening > 1024,
+                        detail: data.port.listening > 1024 ? '✅ Puerto no privilegiado' : '⚠️ Puerto privilegiado (< 1024)'
+                    },
+                    {
+                        label: 'Package manager (apk)',
+                        value: data.package_manager.apk_available ? 'Disponible' : 'No disponible',
+                        secure: !data.package_manager.apk_available,
+                        detail: data.package_manager.apk_available ? '⚠️ Se pueden instalar paquetes' : '✅ No se pueden instalar paquetes'
+                    },
+                    {
+                        label: 'Puede instalar paquetes',
+                        value: data.package_manager.can_install ? 'Sí' : 'No',
+                        secure: !data.package_manager.can_install,
+                        detail: data.package_manager.can_install ? '⚠️ Instalación de paquetes posible' : '✅ Instalación bloqueada'
+                    },
+                    {
+                        label: 'Shell (sh)',
+                        value: data.shell.sh_available ? 'Disponible' : 'No disponible',
+                        secure: !data.shell.sh_available,
+                        detail: data.shell.sh_available ? '⚠️ Shell accesible' : '✅ Sin shell'
+                    },
+                    {
+                        label: 'Bash',
+                        value: data.shell.bash_available ? 'Disponible' : 'No disponible',
+                        secure: !data.shell.bash_available,
+                        detail: data.shell.bash_available ? '⚠️ Bash disponible' : '✅ Sin bash'
+                    },
+                    {
+                        label: 'Escritura en /etc',
+                        value: data.filesystem.can_write_etc ? 'Sí' : 'No',
+                        secure: !data.filesystem.can_write_etc,
+                        detail: data.filesystem.can_write_etc ? '⚠️ Puede modificar /etc' : '✅ /etc protegido'
+                    },
+                    {
+                        label: 'Escritura en /usr',
+                        value: data.filesystem.can_write_usr ? 'Sí' : 'No',
+                        secure: !data.filesystem.can_write_usr,
+                        detail: data.filesystem.can_write_usr ? '⚠️ Puede modificar /usr' : '✅ /usr protegido'
+                    }
+                ];
+
+                const secureCount = checks.filter(c => c.secure).length;
+                const totalCount = checks.length;
+
+                let html = `<div class="score">Puntuación: <strong>${secureCount}/${totalCount}</strong> comprobaciones seguras</div>`;
+                html += '<table class="checks-table"><thead><tr><th>Comprobación</th><th>Valor</th><th>Estado</th></tr></thead><tbody>';
+
+                checks.forEach(check => {
+                    const cls = check.secure ? 'secure' : 'insecure';
+                    html += `<tr class="${cls}"><td>${check.label}</td><td><code>${check.value}</code></td><td>${check.detail}</td></tr>`;
+                });
+
+                html += '</tbody></table>';
+                html += `<p class="timestamp">Generado: ${data.timestamp}</p>`;
+
+                report.innerHTML = html;
+                loading.classList.add('hidden');
+                report.classList.remove('hidden');
+            } catch (e) {
+                loading.textContent = '⚠️ No se pudo cargar status.json. ¿Se ejecutó el entrypoint?';
+            }
+        }
+
+        loadStatus();
+    </script>
+</body>
+</html>
