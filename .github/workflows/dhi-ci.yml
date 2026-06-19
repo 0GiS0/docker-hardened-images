@@ -1,0 +1,62 @@
+name: DHI CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    # 🚦 Ejecuta una validación completa del repo sobre Linux.
+    # Es importante porque reproduce un entorno de CI real para comprobar builds y metadatos.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # 📥 Descarga el contenido del repositorio para que el runner pueda construir las imágenes.
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v7.0.0
+
+      # 🏗️ Prepara Buildx para construir imágenes de forma consistente dentro del workflow.
+      - name: 🏗️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.1.0
+
+      # 🔐 Autentica contra dhi.io usando secrets del repositorio.
+      # Es importante porque las imágenes hardened no se pueden consumir sin login previo.
+      - name: 🔐 Log in to dhi.io
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DHI_USERNAME }}
+          password: ${{ secrets.DHI_TOKEN }}
+
+      # 📦 Instala ORAS para inspeccionar attestations firmadas en las imágenes DHI.
+      - name: 📦 Set up ORAS
+        uses: oras-project/setup-oras@v2.0.0
+
+      # 🐳 Construye la imagen regular para asegurar que la app base sigue empaquetando correctamente.
+      - name: 🐳 Build regular image
+        run: docker build -f Dockerfile.regular -t web-regular-ci .
+
+      # 🛡️ Construye la imagen hardened multi-stage para validar la ruta principal de producción.
+      - name: 🛡️ Build hardened image
+        run: docker build -f Dockerfile.hardened -t web-hardened-ci .
+
+      # 🔥 Construye la variante con Socket Firewall para validar el flujo de instalación protegido.
+      - name: 🔥 Build hardened image with Socket Firewall
+        run: docker build -f Dockerfile.hardened-sfw -t web-hardened-sfw-ci .
+
+      # 🧾 Descubre SBOM, provenance y demás attestations del runtime hardened oficial.
+      # Es importante porque demuestra la parte de supply chain que diferencia a DHI.
+      - name: 🧾 Discover DHI attestations
+        run: oras discover dhi.io/node:24 --platform linux/amd64 | tee oras-node24.txt
+
+      # 📤 Guarda la salida de ORAS como artefacto para revisión posterior en GitHub Actions.
+      - name: 📤 Upload ORAS output
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: oras-node24
+          path: oras-node24.txt

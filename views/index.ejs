@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Hardened Images for Node.js</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Docker Hardened Images</h1>
+            <p class="subtitle">Una app Node.js renderizada segun la imagen que la sirve</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="hero <%= flavor.accentClass %>">
+            <p><strong><%= flavor.title %></strong>: <%= flavor.summary %></p>
+            <p>La deteccion viene del runtime real del contenedor y la etiqueta de variante se inyecta con <code>IMAGE_FLAVOR</code>.</p>
+        </section>
+
+        <section class="live-report">
+            <h2>Informe renderizado en servidor</h2>
+            <p class="report-desc">Esta pagina se genera con EJS en el arranque y refleja la variante declarada y las capacidades reales detectadas dentro del contenedor.</p>
+            <div class="flavor-banner flavor-<%= flavor.accentClass %>">
+                <strong>Variante:</strong> <code><%= flavorKey %></code>
+            </div>
+            <div class="score">Puntuacion: <strong><%= secureCount %>/<%= totalCount %></strong> comprobaciones seguras</div>
+            <table class="checks-table">
+                <thead>
+                    <tr>
+                        <th>Comprobacion</th>
+                        <th>Valor</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% checks.forEach((check) => { %>
+                    <tr class="<%= check.secure ? 'secure' : 'insecure' %>">
+                        <td><%= check.label %></td>
+                        <td><code><%= check.value %></code></td>
+                        <td><%= check.secure ? 'OK' : 'Riesgo' %> - <%= check.detail %></td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            <p class="timestamp">Generado: <%= status.timestamp %></p>
+        </section>
+
+        <section class="comparison">
+            <h2>Que aporta esta variante</h2>
+            <div class="cards single-card">
+                <div class="card <%= flavor.accentClass %>">
+                    <h3><%= flavor.title %></h3>
+                    <ul>
+                        <% flavor.highlights.forEach((highlight) => { %>
+                        <li><%= highlight %></li>
+                        <% }) %>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2>Datos tecnicos del runtime</h2>
+
+            <div class="feature">
+                <h3>Usuario efectivo</h3>
+                <p>El proceso se ejecuta como <code><%= status.user.name %></code> con UID <code><%= status.user.uid %></code> y GID <code><%= status.user.gid %></code>.</p>
+            </div>
+
+            <div class="feature">
+                <h3>Shell y package manager</h3>
+                <p><code>sh</code>: <strong><%= status.shell.sh_available ? 'disponible' : 'no disponible' %></strong>. <code>apk</code>: <strong><%= status.package_manager.apk_available ? 'disponible' : 'no disponible' %></strong>.</p>
+            </div>
+
+            <div class="feature">
+                <h3>Proteccion del filesystem</h3>
+                <p>Escritura en <code>/etc</code>: <strong><%= status.filesystem.can_write_etc ? 'permitida' : 'bloqueada' %></strong>. Escritura en <code>/usr</code>: <strong><%= status.filesystem.can_write_usr ? 'permitida' : 'bloqueada' %></strong>.</p>
+            </div>
+
+            <div class="feature">
+                <h3>Metadatos consumibles</h3>
+                <p>La misma informacion tambien sigue disponible como JSON en <code>/status.json</code> para inspeccion o CI.</p>
+            </div>
+        </section>
+
+        <section class="demo-info">
+            <h2>Pruebalo tu mismo</h2>
+            <div class="code-block">
+                <pre><code># Regular
+docker build -f Dockerfile.regular -t web-regular .
+docker run -p 3000:3000 web-regular
+
+# Hardened
+docker build -f Dockerfile.hardened -t web-hardened .
+docker run -p 8081:8080 web-hardened
+
+# Socket Firewall
+docker build -f Dockerfile.hardened-sfw -t web-hardened-sfw .
+docker run -p 8082:8080 web-hardened-sfw</code></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Servido con Node.js y renderizado con EJS. Documentacion oficial: <a href="https://docs.docker.com/dhi/how-to/use/">Docker Hardened Images</a></p>
+        </div>
+    </footer>
+</body>
+</html>

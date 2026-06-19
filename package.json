@@ -1,0 +1,13 @@
+{
+  "name": "docker-hardened-images-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js demo app for Docker Hardened Images",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^5.1.0"
+  }
+}

@@ -1,0 +1,20 @@
+FROM dhi.io/node:24-sfw-dev AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY app ./app
+COPY lib ./lib
+COPY views ./views
+COPY server.js ./server.js
+
+FROM dhi.io/node:24
+WORKDIR /app
+
+COPY --from=build /app /app
+
+ENV IMAGE_FLAVOR=sfw
+ENV PORT=8080
+EXPOSE 8080
+CMD ["node", "server.js"]

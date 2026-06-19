@@ -1,0 +1,39 @@
+- name: "🤖 dependencies"
+  color: "6f42c1"
+  description: "Actualizaciones automáticas de dependencias y tooling"
+
+- name: "⚙️ github-actions"
+  color: "1f6feb"
+  description: "Cambios en workflows, actions y automatización CI/CD"
+
+- name: "📦 npm"
+  color: "d63384"
+  description: "Cambios en dependencias npm y lockfile"
+
+- name: "🐳 docker"
+  color: "0ea5e9"
+  description: "Cambios en imágenes, Dockerfiles y runtime de contenedores"
+
+- name: "🐞 bug"
+  color: "d73a4a"
+  description: "Algo no está funcionando como debería"
+
+- name: "✨ enhancement"
+  color: "a2eeef"
+  description: "Nueva mejora o evolución de una funcionalidad"
+
+- name: "📝 docs"
+  color: "0e8a16"
+  description: "Mejoras o cambios en documentación"
+
+- name: "🌱 good first issue"
+  color: "7057ff"
+  description: "Buen punto de entrada para primeras contribuciones"
+
+- name: "🤝 help wanted"
+  color: "fbca04"
+  description: "Hace falta ayuda extra para avanzar esta tarea"
+
+- name: "❓ question"
+  color: "d876e3"
+  description: "Hace falta aclarar algo antes de seguir"
