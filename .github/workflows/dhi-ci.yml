@@ -1,4 +1,4 @@
-name: DHI CI
+name: 🛡️ DHI CI
 
 on:
   workflow_dispatch:
@@ -49,14 +49,51 @@ jobs:
       - name: 🔥 Build hardened image with Socket Firewall
         run: docker build -f Dockerfile.hardened-sfw -t web-hardened-sfw-ci .
 
-      # 🧾 Descubre SBOM, provenance y demás attestations del runtime hardened oficial.
-      # Es importante porque demuestra la parte de supply chain que diferencia a DHI.
-      - name: 🧾 Discover DHI attestations
-        run: oras discover dhi.io/node:24 --platform linux/amd64 | tee oras-node24.txt
+      # 🎯 Resuelve la imagen runtime real desde el Dockerfile hardened (la que realmente estamos usando).
+      - name: 🎯 Resolve hardened runtime image
+        id: runtime-image
+        run: |
+          set -euo pipefail
+          runtime_image="$(awk '/^FROM / {print $2}' Dockerfile.hardened | tail -n1)"
+          if [ -z "$runtime_image" ]; then
+            echo "No se pudo resolver la imagen runtime desde Dockerfile.hardened" >&2
+            exit 1
+          fi
+
+          echo "image=$runtime_image" >> "$GITHUB_OUTPUT"
+          echo "Runtime image resolved: $runtime_image"
+
+      # 🧾 Descubre attestations publicadas para la imagen runtime real.
+      - name: 🧾 Discover DHI attestations for runtime image
+        run: |
+          set -euo pipefail
+          oras discover "${{ steps.runtime-image.outputs.image }}" --platform linux/amd64 -o json | tee oras-runtime-attestations.json
+
+      # ✅ Valida de forma explícita que existan señales de SBOM y provenance en los metadatos.
+      - name: ✅ Validate supply-chain attestations
+        run: |
+          set -euo pipefail
+
+          if ! jq -e '.manifests and (.manifests | length > 0)' oras-runtime-attestations.json >/dev/null; then
+            echo "No se encontraron manifests de attestations para la imagen runtime" >&2
+            exit 1
+          fi
+
+          if ! jq -e '[.. | strings] | join(" ") | test("sbom|spdx|cyclonedx"; "i")' oras-runtime-attestations.json >/dev/null; then
+            echo "No se detectaron señales de SBOM en las attestations" >&2
+            exit 1
+          fi
+
+          if ! jq -e '[.. | strings] | join(" ") | test("provenance|slsa|in-toto"; "i")' oras-runtime-attestations.json >/dev/null; then
+            echo "No se detectaron señales de provenance/in-toto en las attestations" >&2
+            exit 1
+          fi
+
+          echo "Attestations validadas: se detectaron señales de SBOM y provenance"
 
       # 📤 Guarda la salida de ORAS como artefacto para revisión posterior en GitHub Actions.
       - name: 📤 Upload ORAS output
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: oras-node24
-          path: oras-node24.txt
+          name: oras-runtime-attestations
+          path: oras-runtime-attestations.json
