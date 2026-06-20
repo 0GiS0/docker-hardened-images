@@ -18,16 +18,16 @@ jobs:
     steps:
       # 📥 Descarga el contenido del repositorio para que el runner pueda construir las imágenes.
       - name: 📥 Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v4
 
       # 🏗️ Prepara Buildx para construir imágenes de forma consistente dentro del workflow.
       - name: 🏗️ Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4.1.0
+        uses: docker/setup-buildx-action@v3
 
       # 🔐 Autentica contra dhi.io usando secrets del repositorio.
       # Es importante porque las imágenes hardened no se pueden consumir sin login previo.
       - name: 🔐 Log in to dhi.io
-        uses: docker/login-action@v4.2.0
+        uses: docker/login-action@v3
         with:
           registry: dhi.io
           username: ${{ secrets.DHI_USERNAME }}
@@ -35,7 +35,7 @@ jobs:
 
       # 📦 Instala ORAS para inspeccionar attestations firmadas en las imágenes DHI.
       - name: 📦 Set up ORAS
-        uses: oras-project/setup-oras@v2.0.0
+        uses: oras-project/setup-oras@v1
 
       # 🐳 Construye la imagen regular para asegurar que la app base sigue empaquetando correctamente.
       - name: 🐳 Build regular image
@@ -93,7 +93,7 @@ jobs:
 
       # 📤 Guarda la salida de ORAS como artefacto para revisión posterior en GitHub Actions.
       - name: 📤 Upload ORAS output
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v4
         with:
           name: oras-runtime-attestations
           path: oras-runtime-attestations.json
