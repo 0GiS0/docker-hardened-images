@@ -18,7 +18,7 @@ jobs:
     steps:
       # 📥 Descarga el contenido del repositorio para que el runner pueda construir las imágenes.
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # 🏗️ Prepara Buildx para construir imágenes de forma consistente dentro del workflow.
       - name: 🏗️ Set up Docker Buildx
