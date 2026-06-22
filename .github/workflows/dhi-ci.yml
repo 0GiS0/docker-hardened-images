@@ -22,7 +22,7 @@ jobs:
 
       # 🏗️ Prepara Buildx para construir imágenes de forma consistente dentro del workflow.
       - name: 🏗️ Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # 🔐 Autentica contra dhi.io usando secrets del repositorio.
       # Es importante porque las imágenes hardened no se pueden consumir sin login previo.
