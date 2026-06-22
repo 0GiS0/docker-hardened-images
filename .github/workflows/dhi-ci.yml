@@ -35,7 +35,7 @@ jobs:
 
       # 📦 Instala ORAS para inspeccionar attestations firmadas en las imágenes DHI.
       - name: 📦 Set up ORAS
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       # 🐳 Construye la imagen regular para asegurar que la app base sigue empaquetando correctamente.
       - name: 🐳 Build regular image
