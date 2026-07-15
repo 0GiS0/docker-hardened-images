@@ -19,6 +19,15 @@ Si quieres verlo en acción echa un vistazo a este vídeo de mi canal de YouTube
   <img src="https://img.youtube.com/vi/JIYd7YW-fFQ/maxresdefault.jpg" alt="Docker Hardened Images" width="100%" />
 </a>
 
+En él hablo de lo siguiente:
+
+- [👋🏻 Introducción](https://www.youtube.com/watch?v=JIYd7YW-fFQ)
+- [🛡️ ¿Qué son las Docker Hardened Images?](https://www.youtube.com/watch?v=JIYd7YW-fFQ&t=55s)
+- [🐳 Cómo generábamos nuestras imágenes hasta ahora](https://www.youtube.com/watch?v=JIYd7YW-fFQ&t=123s)
+- [🧱 Dockerfile con Docker Hardened Images](https://www.youtube.com/watch?v=JIYd7YW-fFQ&t=123s)
+- [🔎 Dónde encontrar las Docker Hardened Images](https://www.youtube.com/watch?v=JIYd7YW-fFQ&t=602s)
+- [🔥 Docker Hardened Images con Socket Firewall](https://www.youtube.com/watch?v=JIYd7YW-fFQ&t=602s)
+
 ## 🌐 Sígueme en Mis Redes Sociales
 
 Si te ha gustado este proyecto y quieres ver más contenido como este, no olvides suscribirte a mi canal de YouTube y seguirme en mis redes sociales:
